@@ -72,6 +72,20 @@ def poly_plus_x_draw(total_length, width, step, side_offset=min_side_offset):
 
 
 def arc_minus_x_draw(d_angle, total_length, width):
+    # length_to_do = (total_length - position.length)
+    # if length_to_do > numpy.pi * R and position.angle == numpy.pi/2:
+    #     createArc(width, R, position.angle, 3 * numpy.pi / 2)
+    #     position.angle = 3 * numpy.pi / 2
+    #     position.length += numpy.pi * R
+    # else:
+    #     final_angle = length_to_do / R + position.angle
+    #     if final_angle > 3 * numpy.pi / 2:
+    #         final_angle = 3 * numpy.pi / 2
+    #         length_to_do = (final_angle - position.angle)*R
+    #     createArc(width, R, position.angle, final_angle)
+    #     position.angle = final_angle
+    #     position.length += length_to_do
+
     for n in range(int(round(numpy.pi / d_angle))):
         if (position.length < total_length) and (position.angle <= 3 * numpy.pi / 2):
             end_angle = position.angle + d_angle
@@ -109,6 +123,20 @@ def arc_half_minus_x_draw(d_angle, total_length, width):
 
 
 def arc_plus_x_draw(d_angle, total_length, width):
+    # length_to_do = (total_length - position.length)
+    # if length_to_do > numpy.pi * R and position.angle == -numpy.pi / 2:
+    #     createArc(width, -R, position.angle, -3 * numpy.pi / 2)
+    #     position.angle = -3 * numpy.pi / 2
+    #     position.length += numpy.pi * R
+    # else:
+    #     final_angle = position.angle - length_to_do / R
+    #     if final_angle <  -3 * numpy.pi / 2:
+    #         final_angle = -3 * numpy.pi / 2
+    #         length_to_do = (position.angle - final_angle)*R
+    #     createArc(width, -R, position.angle, final_angle)
+    #     position.angle = final_angle
+    #     position.length += length_to_do
+
     for n in range(int(round(numpy.pi / d_angle))):
         if (position.length < total_length) and (position.angle >= -3 * numpy.pi / 2):
             end_angle = position.angle - d_angle
@@ -181,9 +209,8 @@ def last_meander_draw(width, step):
         if position.direction == '-x':
             if position.x < last_meander_side_offset:
                 # Turn around to the middle
-                length_to_draw = numpy.pi * R + (last_meander_side_offset - position.x) + numpy.pi * R / 2
+                length_to_draw = numpy.pi * R + (last_meander_side_offset - position.x + step) + numpy.pi * R / 2
                 arc_minus_x_draw(d_angle, length_to_draw, width)
-                position.change_direction()
                 poly_plus_x_draw(length_to_draw, width, step, side_offset=last_meander_side_offset)
 
                 arc_half_plus_x_draw(d_angle, length_to_draw, width)
@@ -196,9 +223,8 @@ def last_meander_draw(width, step):
         elif position.direction == '+x':
             if position.x > last_meander_side_offset:
                 # Turn around to the middle
-                length_to_draw = numpy.pi * R + (position.x - last_meander_side_offset) + numpy.pi * R / 2
+                length_to_draw = numpy.pi * R + (position.x - last_meander_side_offset + step) + numpy.pi * R / 2
                 arc_plus_x_draw(d_angle, length_to_draw, width)
-                position.change_direction()
                 poly_minus_x_draw(length_to_draw, width, step, side_offset=last_meander_side_offset)
 
                 arc_half_minus_x_draw(d_angle, length_to_draw, width)
@@ -247,17 +273,21 @@ def first_meander_draw(total_length, width, step, direction):
 
 
 def taper(initial_width, final_width, length, direction, step=step_polygon):
-    a = (1 / float(length)) * numpy.log(final_width / float(initial_width))
 
-    previous_width = initial_width
-    for i in range(step, length, step):
-        width = initial_width * numpy.exp(a * float(i))
-        # print("Taper - i is %f \n\t a is %f \n\t exp is %f \n\t width is %f" % (i, a, numpy.exp(a * i), width))
+    # Fake exponential Taper - terrible design
+    # a = (1 / float(length)) * numpy.log(final_width / float(initial_width))
+    #
+    # previous_width = initial_width
+    # for i in range(step, length, step):
+    #     width = initial_width * numpy.exp(a * float(i))
+    #     if (i == length-step):  # for the last iteration
+    #         width = final_width
+    #
+    #     # print("Taper - i is %f \n\t a is %f \n\t exp is %f \n\t width is %f" % (i, a, numpy.exp(a * i), width))
+    #     createPoly(width=previous_width, length=step, direction=direction, final_width=width)
+    #     previous_width = width
 
-        createPoly(width=previous_width, length=step, direction=direction, final_width=width)
-        previous_width = width
-
-    # createPoly(width=initial_width, length=length, direction=direction, final_width=final_width)
+    createPoly(width=initial_width, length = length, direction=direction, final_width=final_width)
 
 
 # END of FUNCTION definitions
@@ -275,26 +305,28 @@ position = Position.Position(x=chip_width / 2, y=chip_length / 2 - edge_offset, 
 
 createPoly(width=t_final, length=l_final, direction='-y')
 taper(initial_width=t_final, final_width=t_Zhigh, length=l_taper, direction='-y', step=step_polygon)  # tapering
+
 createArc(t_Zhigh, R, -numpy.pi, -numpy.pi / 2)
+createPoly(width=t_Zhigh, length=(chip_width - min_side_offset - R - position.x), direction='+x')
 
 position.length = 0
 position.direction = '+x'
-meander_draw(total_length=l_Zhigh_edge, width=t_Zhigh, step=step_polygon)
+meander_draw(total_length=l_Zhigh_edge - (l_Zlow/2) - (l_Zlow_short/2), width=t_Zhigh, step=step_polygon)
 
 for i in range(number):  # number of repetitions
     print("Iteration %d" % (i + 1))
     position.length = 0  # before building new TL, the initial length should be set to zero
     meander_draw(total_length=l_Zlow, width=t_Zlow, step=step_polygon)
     position.length = 0
-    meander_draw(total_length=l_Zhigh, width=t_Zhigh, step=step_polygon)
+    meander_draw(total_length=l_Zhigh - l_Zlow, width=t_Zhigh, step=step_polygon)
     position.length = 0  # before building new TL, the initial length should be set to zero
     meander_draw(total_length=l_Zlow, width=t_Zlow, step=step_polygon)
     position.length = 0
-    meander_draw(total_length=l_Zhigh, width=t_Zhigh, step=step_polygon)
+    meander_draw(total_length=l_Zhigh - (l_Zlow/2) - (l_Zlow_short/2), width=t_Zhigh, step=step_polygon)
     position.length = 0
     meander_draw(total_length=l_Zlow_short, width=t_Zlow, step=step_polygon)
     position.length = 0
-    meander_draw(total_length=l_Zhigh, width=t_Zhigh, step=step_polygon)
+    meander_draw(total_length=l_Zhigh - (l_Zlow/2) - (l_Zlow_short/2), width=t_Zhigh, step=step_polygon)
     position.length = 0
 
 # meander_draw(total_length=l_Zlow, width=t_Zlow, step=step_polygon)
